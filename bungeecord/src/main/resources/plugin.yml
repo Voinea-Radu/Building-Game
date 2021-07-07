@@ -1,3 +1,0 @@
-name: BuildingGame_BungeeCord
-main: com.gmail.stefvanschiedev.buildinggame.Main
-version: ${project.version}

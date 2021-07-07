@@ -1,5 +1,0 @@
-main: com.gmail.stefvanschiedev.buildinggame.Main
-name: BuildingGame_Addon
-version: ${project.version}
-
-api-version: 1.13
