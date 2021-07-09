@@ -295,6 +295,11 @@ signs:
 debug: false
 
 vip-arena:
+  key:
+    material: "TRIPWIRE_HOOK"
+    name: "VIP KEY"
+    lore:
+      - "VIP KEY"
   arena: "Arena Name"
   tabex-token: "Token"
   1st-place-reward: 5

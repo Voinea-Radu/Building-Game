@@ -25,7 +25,6 @@ import com.gmail.stefvanschiedev.buildinggame.utils.stats.StatType;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -36,6 +35,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemStack;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,6 +43,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -313,14 +314,28 @@ public class CommandManager extends BaseCommand {
     @Subcommand("join-vip")
     @Description("Join a V.I.P. arena")
     @CommandPermission("bg.join.vip")
-    @CommandCompletion("@nothing")
-    public void onJoinVip(Player player, String purchaseCode) {
+    public void onJoinVip(Player player) {
         Arena arena = null;
         for (Arena a : ArenaManager.getInstance().getArenas()) {
             if (a.getName().equals(SettingsManager.getInstance().getConfig().get("vip-arena.arena"))) {
                 arena = a;
             }
         }
+
+        int count = 0;
+
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack item = player.getInventory().getItem(i);
+            if(checkValidVipKey(item)){
+                count += item.getAmount();
+                player.getInventory().setItem(i, null);
+            }
+        }
+
+        count--;
+        player.getInventory().addItem(getVipKey(count));
+
+        /*
 
         List<String> currentlyActiveCodes = SettingsManager.getInstance().getVipCodes().getStringList("not-used-codes");
 
@@ -372,6 +387,8 @@ public class CommandManager extends BaseCommand {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+         */
     }
 
 
@@ -1266,15 +1283,6 @@ public class CommandManager extends BaseCommand {
             rawMessage = SettingsManager.getInstance().getMessages().getStringList("vip-points.buy.success");
             points -= neededPoints;
             StatManager.getInstance().registerStat(player, StatType.VIP_POINTS, points);
-
-            List<String> currentActiveCodes = SettingsManager.getInstance().getVipCodes().getStringList("not-used-codes");
-
-            while (currentActiveCodes.contains(code) || code.equals("")) {
-                code = RandomStringUtils.random(20, true, true);
-            }
-
-            currentActiveCodes.add(code);
-            SettingsManager.getInstance().getVipCodes().set("not-used-codes", currentActiveCodes);
         }
 
         List<String> parsedMessage = new ArrayList<>();
@@ -1282,10 +1290,11 @@ public class CommandManager extends BaseCommand {
         for (String line : rawMessage) {
             line = line.replace("%points%", String.valueOf(points));
             line = line.replace("%needed_points%", String.valueOf(neededPoints));
-            line = line.replace("%code%", code);
             parsedMessage.add(line);
         }
         MessageManager.getInstance().send(player, parsedMessage);
+
+        onVipKeyGive(Bukkit.getConsoleSender(), player);
     }
 
     @Subcommand("give-vip-points")
@@ -1307,6 +1316,32 @@ public class CommandManager extends BaseCommand {
         local_points += points;
         StatManager.getInstance().registerStat(target, StatType.VIP_POINTS, local_points);
         MessageManager.getInstance().send(sender, "Points given!");
+    }
+
+    @Subcommand("give-vip-key")
+    @Description("Give VIP key to player")
+    @CommandPermission("bg.give-vip-key")
+    @CommandCompletion("@player")
+    public void onVipKeyGive(CommandSender sender, Player target) {
+        target.getInventory().addItem(getVipKey(1));
+    }
+
+    public boolean checkValidVipKey(ItemStack item) {
+        ItemStack checkItem = getVipKey(1);
+        if (!item.getType().equals(checkItem.getType())) {
+            return false;
+        }
+        if (!item.getItemMeta().getDisplayName().equals(checkItem.getItemMeta().getDisplayName())) {
+            return false;
+        }
+        return item.getItemMeta().getLore().equals(checkItem.getItemMeta().getLore());
+    }
+
+    public ItemStack getVipKey(int count) {
+        return new ItemBuilder(null, Material.getMaterial(SettingsManager.getInstance().getConfig().getString("vip-arena.key.material")))
+            .setDisplayName(Utils.color(SettingsManager.getInstance().getConfig().getString("vip-arena.key.name")))
+            .setLore(Utils.color(SettingsManager.getInstance().getConfig().getStringList("vip-arena.key.lore")))
+            .build();
     }
 
     /**
