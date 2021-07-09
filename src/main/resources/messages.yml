@@ -4636,3 +4636,15 @@ plots:
     
 leave-item:
   name: "&6Leave"
+
+win-points:
+  - "You have won VIP %points%. If you have %needed_points% you can get a VIP invite using the /bg get-vip-ticket."
+  - "You can see how many VIP points you have by using /bg vip-points"
+vip-points:
+  query:
+    - "You have %points% points"
+  buy:
+    fail:
+      - "You have %points%/%needed_points% points"
+    success:
+      - "Your code is %code%"

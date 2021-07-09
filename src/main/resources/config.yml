@@ -297,3 +297,7 @@ debug: false
 vip-arena:
   arena: "Arena Name"
   tabex-token: "Token"
+  1st-place-reward: 5
+  2nd-place-reward: 3
+  3rd-place-reward: 1
+  code-price: 20

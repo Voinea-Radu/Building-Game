@@ -25,6 +25,7 @@ import com.gmail.stefvanschiedev.buildinggame.utils.stats.StatType;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -40,7 +41,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -322,21 +322,23 @@ public class CommandManager extends BaseCommand {
             }
         }
 
-        System.out.println(arena.getName());
-        System.out.println(purchaseCode);
-        System.out.println((String) SettingsManager.getInstance().getConfig().get("vip-arena.tabex-token"));
+        List<String> currentlyActiveCodes = SettingsManager.getInstance().getVipCodes().getStringList("not-used-codes");
+
+        if (currentlyActiveCodes.contains(purchaseCode)) {
+            currentlyActiveCodes.remove(purchaseCode);
+            SettingsManager.getInstance().getVipCodes().set("not-used-codes", currentlyActiveCodes);
+            arena.join(player);
+            return;
+        }
 
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             String url = "https://plugin.tebex.io/user/" + player.getName();
-            System.out.println(url);
             HttpGet request = new HttpGet(url);
             request.setHeader("User-Agent", "Java client");
-            request.setHeader("X-Tebex-Secret", (String) SettingsManager.getInstance().getConfig().get("vip-arena.tabex-token"));
-            System.out.println(Arrays.toString(request.getAllHeaders()));
+            request.setHeader("X-Tebex-Secret", SettingsManager.getInstance().getConfig().getString("vip-arena.tabex-token"));
             HttpResponse response = client.execute(request);
 
             BufferedReader bufReader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-
             StringBuilder builder = new StringBuilder();
 
             String line;
@@ -353,7 +355,6 @@ public class CommandManager extends BaseCommand {
             for (int i = 0; i < paymentObjects.size(); i++) {
                 paymentTxnIDs.add(paymentObjects.get(i).getAsJsonObject().get("txn_id").getAsString());
             }
-            System.out.println(paymentTxnIDs);
             List<String> currentlyUsedCodes = SettingsManager.getInstance().getVipCodes().getStringList("used-codes");
             for (String txnID : paymentTxnIDs) {
                 if (purchaseCode.equals(txnID)) {
@@ -1224,6 +1225,90 @@ public class CommandManager extends BaseCommand {
         help.showHelp();
     }
 
+    @Subcommand("vip-points")
+    @Description("Query for the VIP points that you have")
+    @CommandPermission("bg.vip-points-query")
+    @CommandCompletion("@nothing")
+    public void onVipPointsQuery(Player player) {
+        int points = 0;
+        if (StatManager.getInstance().containsUUID(player.getPlayer().getUniqueId())) {
+            points += StatManager.getInstance().getStat(player.getPlayer(), StatType.VIP_POINTS).getValue();
+        }
+
+        List<String> rawMessage = SettingsManager.getInstance().getMessages().getStringList("vip-points.query");
+        List<String> parsedMessage = new ArrayList<>();
+
+        for (String line : rawMessage) {
+            line = line.replace("%points%", String.valueOf(points));
+            parsedMessage.add(line);
+        }
+
+        MessageManager.getInstance().send(player, parsedMessage);
+    }
+
+    @Subcommand("get-vip-ticket")
+    @Description("Buy a VIP ticket by using your VIP points")
+    @CommandPermission("bg.buy-vip-ticket")
+    @CommandCompletion("@nothing")
+    public void onVipTicketBuy(Player player) {
+        int points = 0;
+        if (StatManager.getInstance().containsUUID(player.getPlayer().getUniqueId())) {
+            points += StatManager.getInstance().getStat(player.getPlayer(), StatType.VIP_POINTS).getValue();
+        }
+        int neededPoints = SettingsManager.getInstance().getConfig().getInt("vip-arena.code-price");
+
+        List<String> rawMessage;
+        String code = "";
+
+        if (points <= neededPoints) {
+            rawMessage = SettingsManager.getInstance().getMessages().getStringList("vip-points.buy.fail");
+        } else {
+            rawMessage = SettingsManager.getInstance().getMessages().getStringList("vip-points.buy.success");
+            points -= neededPoints;
+            StatManager.getInstance().registerStat(player, StatType.VIP_POINTS, points);
+
+            List<String> currentActiveCodes = SettingsManager.getInstance().getVipCodes().getStringList("not-used-codes");
+
+            while (currentActiveCodes.contains(code) || code.equals("")) {
+                code = RandomStringUtils.random(20, true, true);
+            }
+
+            currentActiveCodes.add(code);
+            SettingsManager.getInstance().getVipCodes().set("not-used-codes", currentActiveCodes);
+        }
+
+        List<String> parsedMessage = new ArrayList<>();
+
+        for (String line : rawMessage) {
+            line = line.replace("%points%", String.valueOf(points));
+            line = line.replace("%needed_points%", String.valueOf(neededPoints));
+            line = line.replace("%code%", code);
+            parsedMessage.add(line);
+        }
+        MessageManager.getInstance().send(player, parsedMessage);
+    }
+
+    @Subcommand("give-vip-points")
+    @Description("Give VIP points to an online player")
+    @CommandPermission("bg.give-vip-points")
+    @CommandCompletion("@nothing @players")
+    public void onVipPointsGive(CommandSender sender, int points, Player target) {
+        int local_points = 0;
+
+        if (target == null) {
+            MessageManager.getInstance().send(sender, "This is not a valid player");
+            return;
+        }
+
+        if (StatManager.getInstance().containsUUID(target.getUniqueId())) {
+            local_points += StatManager.getInstance().getStat(target, StatType.VIP_POINTS).getValue();
+        }
+
+        local_points += points;
+        StatManager.getInstance().registerStat(target, StatType.VIP_POINTS, local_points);
+        MessageManager.getInstance().send(sender, "Points given!");
+    }
+
     /**
      * Contains methods for commands regarding holograms
      *
@@ -1287,6 +1372,19 @@ public class CommandManager extends BaseCommand {
             sender.sendMessage(ChatColor.GREEN + "The hologram named '" + name + "' has been deleted.");
         }
 
-
     }
+    /*
+    win-points:
+  - "You have won VIP %points%. If you have %needed_points% you can get a VIP invite using the /bg get-vip-ticket."
+  - "You can see how many VIP points you have by using /bg vip-points"
+    vip-points:
+  query:
+    - "You have %points% points"
+  buy:
+    fail:
+      - "You have %points%/%needed_points% points"
+    success:
+      - "Your code is %code%"
+
+     */
 }

@@ -127,6 +127,14 @@ public enum StatType {
         public boolean isEnabled(@NotNull YamlConfiguration config) {
             return config.getBoolean("stats.enable.points-given");
         }
+    },
+
+    VIP_POINTS{
+        @Contract(pure = true)
+        @Override
+        public boolean isEnabled(@NotNull YamlConfiguration config) {
+            return true;
+        }
     };
 
     /**
