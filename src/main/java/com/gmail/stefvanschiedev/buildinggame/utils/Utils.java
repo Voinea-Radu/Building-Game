@@ -11,8 +11,8 @@ public class Utils {
         return ChatColor.translateAlternateColorCodes('&', str);
     }
 
-    public static List<String> color(List<String> str) {
-        List<String> output = new ArrayList<>();
+    public static ArrayList<String> color(List<String> str) {
+        ArrayList<String> output = new ArrayList<>();
         for (String line : str) {
             output.add(color(line));
         }

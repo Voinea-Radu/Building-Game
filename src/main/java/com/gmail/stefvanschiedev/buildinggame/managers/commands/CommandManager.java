@@ -22,13 +22,6 @@ import com.gmail.stefvanschiedev.buildinggame.utils.potential.PotentialLocation;
 import com.gmail.stefvanschiedev.buildinggame.utils.region.Region;
 import com.gmail.stefvanschiedev.buildinggame.utils.region.RegionFactory;
 import com.gmail.stefvanschiedev.buildinggame.utils.stats.StatType;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -37,13 +30,9 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -326,7 +315,7 @@ public class CommandManager extends BaseCommand {
 
         for (int i = 0; i < player.getInventory().getSize(); i++) {
             ItemStack item = player.getInventory().getItem(i);
-            if(checkValidVipKey(item)){
+            if (checkValidVipKey(item)) {
                 count += item.getAmount();
                 player.getInventory().setItem(i, null);
             }
@@ -1321,13 +1310,16 @@ public class CommandManager extends BaseCommand {
     @Subcommand("give-vip-key")
     @Description("Give VIP key to player")
     @CommandPermission("bg.give-vip-key")
-    @CommandCompletion("@player")
+    @CommandCompletion("@players")
     public void onVipKeyGive(CommandSender sender, Player target) {
         target.getInventory().addItem(getVipKey(1));
     }
 
     public boolean checkValidVipKey(ItemStack item) {
         ItemStack checkItem = getVipKey(1);
+        if (item == null) {
+            return false;
+        }
         if (!item.getType().equals(checkItem.getType())) {
             return false;
         }
@@ -1338,7 +1330,7 @@ public class CommandManager extends BaseCommand {
     }
 
     public ItemStack getVipKey(int count) {
-        return new ItemBuilder(null, Material.getMaterial(SettingsManager.getInstance().getConfig().getString("vip-arena.key.material")))
+        return new com.gmail.stefvanschiedev.buildinggame.utils.newItemBuilder.ItemBuilder(Material.getMaterial(SettingsManager.getInstance().getConfig().getString("vip-arena.key.material")))
             .setDisplayName(Utils.color(SettingsManager.getInstance().getConfig().getString("vip-arena.key.name")))
             .setLore(Utils.color(SettingsManager.getInstance().getConfig().getStringList("vip-arena.key.lore")))
             .build();
